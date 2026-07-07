@@ -1,0 +1,16 @@
+# Godot 4 specific overrides
+.godot/
+*.translation
+*.log
+
+# Ignore the heavy compiled python addon binaries
+addons/godot_python/
+
+# ...BUT explicitly make sure Git tracks your custom Python files
+!addons/godot_python/**/*.py
+!PythonFiles/
+!**/*.py
+
+# OS specific ignores
+.DS_Store
+.thumbs
