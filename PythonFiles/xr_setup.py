@@ -1,51 +1,46 @@
-from py4godot.classes import gdclass
+from py4godot.enums.enums import *
+from py4godot.core import *
 from py4godot.classes.Node3D import Node3D
 from py4godot.classes.XRServer import XRServer
-from py4godot.classes.Label3D import Label3D
-import time
-import math
+from py4godot.classes.MeshInstance3D import MeshInstance3D
+from py4godot.classes.SphereMesh import SphereMesh
+from py4godot.classes.StandardMaterial3D import StandardMaterial3D
 
-@gdclass
 class XRSetup(Node3D):
-
-	def _ready(self) -> None:
-		# 1. Fetch the absolute Root Viewport Window from the main SceneTree
-		scene_tree = self.get_tree()
-		if scene_tree:
-			root_viewport = scene_tree.get_root()
-			if root_viewport:
-				root_viewport.set_use_xr(True)
-				print("SUCCESS: Explicitly marked Root Viewport with use_xr via SceneTree!")
-
-		# 2. Proceed with standard interface initialization
-		xr_server = XRServer.get_singleton()
-		xr_interface = xr_server.find_interface("OpenXR")
+	
+	def _ready(self):
+		print("Python: Activating Passthrough Blend Mode...")
 		
-		if xr_interface and xr_interface.is_initialized():
-			print("SUCCESS: WiVRn OpenXR Pipeline Fully Confirmed via Python!")
-			self.hud_label = Label3D.cast(self.get_node("XRCamera3D/HUDLabel"))
-			self.start_time = time.time()
-			self.frame_count = 0
-		else:
-			print("ERROR: OpenXR interface could not be initialized.")
-			self.hud_label = None
+		# 1. Set up Passthrough
+		xr_server = XRServer.get_instance()
+		xr_interface = xr_server.find_interface("OpenXR")
+		if xr_interface:
+			xr_interface.set_environment_blend_mode(4) # Alpha Blend Mode
 
-	def _process(self, delta: float) -> None:
-		if self.hud_label:
-			self.frame_count += 1
-			current_time = time.time() - self.start_time
-			
-			velocity = 50.0 + 10.0 * math.sin(self.frame_count * 0.05)
-			altitude = 150.0 + (self.frame_count * 0.1)
-			status = "NOMINAL" if (self.frame_count % 100 < 95) else "WARNING_OVERHEATING"
-			
-			hud_text = (
-				f"PYTHON SIMULATION HUD\n"
-				f"=====================\n"
-				f"Sim Time: {current_time:.2f}s\n"
-				f"Velocity: {velocity:.2f} m/s\n"
-				f"Altitude: {altitude:.1f} m\n"
-				f"Status:   {status}"
-			)
-			
-			self.hud_label.set_text(hud_text)
+		# 2. Grab your existing hand nodes from the scene tree
+		# We look up the tree from PythonXRManager to find XROrigin3D's children
+		self.left_hand = self.get_node("../XROrigin3D/lefthand")
+		self.right_hand = self.get_node("../XROrigin3D/righthand")
+
+		if self.left_hand and self.right_hand:
+			print("Python: Located tracking nodes. Attaching visual telemetry spheres...")
+			# 3. Attach your spheres directly to them
+			self.attach_colored_sphere(self.left_hand, Color(0, 1, 0, 1))   # Green
+			self.attach_colored_sphere(self.right_hand, Color(0, 0, 1, 1))  # Blue
+		else:
+			print("Python: Error - Could not find the left or right hand nodes in the scene tree.")
+
+	def attach_colored_sphere(self, parent_node, color_value):
+		mesh_instance = MeshInstance3D.new()
+		sphere_mesh = SphereMesh.new()
+		sphere_mesh.set_radius(0.05)
+		sphere_mesh.set_height(0.1)
+		
+		material = StandardMaterial3D.new()
+		material.set_albedo(color_value)
+		material.set_shading_mode(0) 
+		
+		sphere_mesh.surface_set_material(0, material)
+		mesh_instance.set_mesh(sphere_mesh)
+		
+		parent_node.add_child(mesh_instance)
