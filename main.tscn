@@ -12,6 +12,7 @@ background_mode = 2
 sky = SubResource("Sky_ig7tw")
 
 [node name="main" type="Node3D" unique_id=495166052]
+xr/viewport/xr_mode = 1
 unique_name_in_owner = false
 process_mode = 0
 process_priority = 0
@@ -39,6 +40,9 @@ tracker = &"right_hand"
 pose = &"aim"
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=913497663]
+
+[node name="HUDLabel" type="Label3D" parent="XROrigin3D/XRCamera3D" unique_id=1003321546]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.5)
 
 [node name="visualizationcontainer" type="Node3D" parent="." unique_id=754196705]
 

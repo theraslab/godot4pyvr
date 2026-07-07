@@ -3,18 +3,29 @@
 ToDo
 
 
-Command to launch godot, under the "pyvr" conda environment:
+Command to launch godot, under the "pyvr" conda environment.
+
+
+**Terminal sesion 1**
+
+- Step 1: Grant Device Permissions to WiVRn:
 
 ```console
-~/Documents/godot/godot-bin/Godot_v4.7-stable_linux.x86_64 -e --path ~/Documents/godot/hello-world/
+flatpak override --user --device=all --share=ipc io.github.wivrn.wivrn
 ```
 
+- Step 2:  Launch WiVRn under the discrete NVIDIA graphic card, by the command:
 ```console
-cd ~/Documents/godot/godot-bin/
-export XR_RUNTIME_JSON=$HOME/Documents/godot/godot-bin/openxr_wivrn.json
-export PYTHONPATH=~/miniconda3/envs/pyvr/lib/python3.10/site-packages:$PYTHONPATH
+flatpak run \
+  --env=__NV_PRIME_RENDER_OFFLOAD=1 \
+  --env=__GLX_VENDOR_LIBRARY_NAME=nvidia \
+  io.github.wivrn.wivrn
 ```
 
+**Terminal sesion 2**
+
+- Step 1:
+
 ```console
-./Godot_v4.7-stable_linux.x86_64 --path ~/Documents/godot/hello-world/
+./Godot_v4.7-stable_linux.x86_64 -e --path ~/Documents/godot/hello-world/
 ```

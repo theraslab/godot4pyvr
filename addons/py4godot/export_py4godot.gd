@@ -17,8 +17,11 @@ func _export_begin(features, is_debug, path, flags):
 	_copy_py_files(project_path, export_base)
 	print("Finished copying python files")
 
+#func _export_file(path, type, features):
+#	return null if path.ends_with(".py") or path.begins_with("addons/py4godot/") else null
 func _export_file(path, type, features):
-	return null if path.ends_with(".py") or path.begins_with("addons/py4godot/") else null
+	if path.ends_with(".py") or path.begins_with("addons/py4godot/"):
+		return # Plain return statement with no value attached to satisfy the void type
 
 func _copy_dir(src: String, dst: String):
 	var dir = DirAccess.open(src)
