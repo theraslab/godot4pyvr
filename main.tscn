@@ -1,0 +1,48 @@
+[gd_scene format=3 uid="uid://c3prlatwxbdbn"]
+
+[ext_resource type="Script" path="res://PythonFiles/xr_setup.py" id="1_ig7tw"]
+
+[sub_resource type="PhysicalSkyMaterial" id="PhysicalSkyMaterial_7dm0k"]
+
+[sub_resource type="Sky" id="Sky_ig7tw"]
+sky_material = SubResource("PhysicalSkyMaterial_7dm0k")
+
+[sub_resource type="Environment" id="Environment_6ivru"]
+background_mode = 2
+sky = SubResource("Sky_ig7tw")
+
+[node name="main" type="Node3D" unique_id=495166052]
+unique_name_in_owner = false
+process_mode = 0
+process_priority = 0
+process_physics_priority = 0
+process_thread_group = 0
+physics_interpolation_mode = 0
+auto_translate_mode = 0
+editor_description = ""
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+rotation_edit_mode = 0
+rotation_order = 2
+top_level = false
+visible = true
+visibility_parent = NodePath("")
+script = ExtResource("1_ig7tw")
+
+[node name="XROrigin3D" type="XROrigin3D" parent="." unique_id=1968607024]
+
+[node name="lefthand" type="XRController3D" parent="XROrigin3D" unique_id=919530321]
+tracker = &"left_hand"
+pose = &"aim"
+
+[node name="righthand" type="XRController3D" parent="XROrigin3D" unique_id=397770965]
+tracker = &"right_hand"
+pose = &"aim"
+
+[node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=913497663]
+
+[node name="visualizationcontainer" type="Node3D" parent="." unique_id=754196705]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=966763586]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1048424484]
+environment = SubResource("Environment_6ivru")
