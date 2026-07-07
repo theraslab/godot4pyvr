@@ -24,8 +24,12 @@ flatpak run \
 
 **Terminal sesion 2**
 
-- Step 1:
+- Step 1: Go to the path of the binaries of the godot executable:
+```console
+cd ~/Documents/godot/godot-bin
+```
 
+- Step 2: Launch godot while explicitly pointing out the path:
 ```console
 ./Godot_v4.7-stable_linux.x86_64 -e --path ~/Documents/godot/hello-world/
 ```
