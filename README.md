@@ -62,5 +62,5 @@ export CUDA_CACHE_DISABLE=0
 export XR_RUNTIME_JSON=$HOME/Documents/godot/godot-bin/openxr_wivrn.json
 export PYTHONPATH=~/miniconda3/envs/pyvr/lib/python3.10/site-packages:$PYTHONPATH
 
-./Godot_v4.7-stable_linux.x86_64 --path ~/Documents/godot/hello-world/ --xr-mode on
+./Godot_v4.7-stable_linux.x86_64 --path ~/Documents/godot/hello-world/ --xr-mode on --rendering-method gl_compatibility
 ```
