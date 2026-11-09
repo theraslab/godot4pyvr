@@ -39,7 +39,7 @@ Important:
 
 ## Quick start
 
-### 1. Start the Python runner
+### Start the Python runner
 
 From the project root:
 
@@ -52,21 +52,67 @@ This listens for XR snapshots on `127.0.0.1:9000` and streams geometry back to `
 
 The runner sends geometry at up to 30 FPS by default and samples the newest available input. It keeps the internal `VirtualFollower` updated and does not send hardware commands.
 
-### 2. Launch the Godot project
+## Linux + WiVRn launch notes
 
-Start the project with OpenXR enabled and run the scene in the editor or standalone mode.
+For Linux setups using WiVRn, use the commands below to start the runtime and Godot. These are the platform-specific launch commands for the quick start above.
 
-Godot sends local UDP snapshots to the Python runner; the Python process resolves the robot model and returns geometry for visualization.
-
-### 3. Optional: enable statistics
-
-For debugging or verification:
+### Terminal 1: launch WiVRn
 
 ```bash
-python -m robot_control.stras_vr_simulator --stats-interval 1
+flatpak override --user --device=all --share=ipc io.github.wivrn.wivrn
 ```
 
-This prints cumulative input/FK counters periodically.
+```bash
+flatpak run \
+  --env=__NV_PRIME_RENDER_OFFLOAD=1 \
+  --env=__GLX_VENDOR_LIBRARY_NAME=nvidia \
+  io.github.wivrn.wivrn
+```
+
+### Terminal 2: launch Godot with the OpenXR runtime
+
+```bash
+cd ~/Documents/godot/godot-bin
+
+# 1. Clear out Intel Mesa targets from the loader scope completely
+export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+
+# 2. Enforce standard XR & Python variables
+export XR_RUNTIME_JSON=$HOME/Documents/godot/godot-bin/openxr_wivrn.json
+export PYTHONPATH=~/miniconda3/envs/pyvr/lib/python3.10/site-packages:$PYTHONPATH
+
+# 3. Apply standard PRIME hardware parameters
+export __NV_PRIME_RENDER_OFFLOAD=1
+export __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+
+# 4. Open the editor; press F5 to run the project
+./Godot_v4.7-stable_linux.x86_64 -e --path ~/Documents/godot/hello-world/
+```
+
+Or run directly without the editor:
+
+```bash
+cd ~/Documents/godot/godot-bin
+
+export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+export __NV_PRIME_RENDER_OFFLOAD=1
+export __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+export CUDA_CACHE_DISABLE=0
+export XR_RUNTIME_JSON=$HOME/Documents/godot/godot-bin/openxr_wivrn.json
+
+./Godot_v4.7-stable_linux.x86_64 --path ~/Documents/godot/hello-world/ --xr-mode on --rendering-method forward_plus
+```
+
+### Optional: enable runner statistics
+
+In the Python runner terminal, use this command instead of the standard runner command in Quick start to print cumulative input/FK counters every second:
+
+```bash
+conda activate pyvr
+python -m robot_control.stras_vr_simulator --stats-interval 1
+```
 
 ## Normalized input conventions
 
@@ -125,57 +171,6 @@ python -m robot_control.stras.input.transport_and_validation.input_server
 The mock scene sends neutral frames for one second, then holds the simulated grip and moves the right stick upward. Watch the terminal for increasing sequence numbers and `R.grip=1.0` output.
 
 Do not run this test server at the same time as `stras_vr_simulator`; both bind to port `9000`.
-
-## Linux + WiVRn launch notes
-
-### Terminal 1: launch WiVRn
-
-```bash
-flatpak override --user --device=all --share=ipc io.github.wivrn.wivrn
-```
-
-```bash
-flatpak run \
-  --env=__NV_PRIME_RENDER_OFFLOAD=1 \
-  --env=__GLX_VENDOR_LIBRARY_NAME=nvidia \
-  io.github.wivrn.wivrn
-```
-
-### Terminal 2: launch Godot with the OpenXR runtime
-
-```bash
-cd ~/Documents/godot/godot-bin
-
-# 1. Clear out Intel Mesa targets from the loader scope completely
-export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
-
-# 2. Enforce standard XR & Python variables
-export XR_RUNTIME_JSON=$HOME/Documents/godot/godot-bin/openxr_wivrn.json
-export PYTHONPATH=~/miniconda3/envs/pyvr/lib/python3.10/site-packages:$PYTHONPATH
-
-# 3. Apply standard PRIME hardware parameters
-export __NV_PRIME_RENDER_OFFLOAD=1
-export __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
-export __GLX_VENDOR_LIBRARY_NAME=nvidia
-
-# 4. Open the editor; press F5 to run the project
-./Godot_v4.7-stable_linux.x86_64 -e --path ~/Documents/godot/hello-world/
-```
-
-Or run directly without the editor:
-
-```bash
-cd ~/Documents/godot/godot-bin
-
-export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
-export __NV_PRIME_RENDER_OFFLOAD=1
-export __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
-export __GLX_VENDOR_LIBRARY_NAME=nvidia
-export CUDA_CACHE_DISABLE=0
-export XR_RUNTIME_JSON=$HOME/Documents/godot/godot-bin/openxr_wivrn.json
-
-./Godot_v4.7-stable_linux.x86_64 --path ~/Documents/godot/hello-world/ --xr-mode on --rendering-method forward_plus
-```
 
 ## Notes for development
 
