@@ -14,15 +14,18 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from PythonFiles.input_client import InputClient
-from robot_control.input_server import InputServer
-from robot_control.latest_slot import Mailbox
+from robot_control.stras.input.helpers.input_client import InputClient
+from robot_control.stras.input.helpers.controller_input import ControllerInputReader
+from robot_control.stras.input.transport_and_validation.input_server import InputServer
+from robot_control.stras.input.transport_and_validation.latest_slot import Mailbox
 
 
-def controller_state(trigger=0.5, connected=True):
+def controller_state(trigger=0.5, connected=True, position=(0.0, 0.0, 0.0)):
     """Same shape ControllerInputReader.read_controller returns."""
     return {
         "connected": connected,
+        "position": dict(zip(("x", "y", "z"), position)),
+        "orientation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
         "trigger": trigger,
         "grip": 0.0,
         "primary": {"x": -0.25, "y": 0.75},
@@ -61,13 +64,78 @@ def link():
 
 def test_payload_arrives_intact(link):
     box, server, client = link
-    sent = frame(trigger=0.875)
+    sent = {
+        "left": controller_state(position=(1.0, 2.0, 3.0)),
+        "right": controller_state(trigger=0.875, position=(-1.0, 0.5, 4.0)),
+    }
     client.send(sent)
     assert wait_for(lambda: box.get() is not None)
     msg = box.get()
     assert msg.seq == 0
     assert msg.payload == sent                 # round-trips through JSON unchanged
     assert msg.payload["left"]["primary"] == {"x": -0.25, "y": 0.75}
+    assert msg.payload["right"]["position"] == {"x": -1.0, "y": 0.5, "z": 4.0}
+    assert msg.payload["right"]["orientation"] == {
+        "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0,
+    }
+
+
+def test_controller_reader_includes_position_and_zeros_disconnected_hands():
+    class Controller:
+        def get_float(self, _action):
+            return 0.0
+
+        def get_vector2(self, _action):
+            return type("Vector2", (), {"x": 0.0, "y": 0.0})()
+
+        def is_button_pressed(self, _button):
+            return False
+
+    active = ControllerInputReader.read_controller(
+        Controller(), position={"x": 1.25, "y": -2.0, "z": 0.5},
+        orientation={"x": 0.1, "y": 0.2, "z": 0.3, "w": 0.9})
+    disconnected = ControllerInputReader.read_controller(
+        Controller(), connected=False, position={"x": 9.0, "y": 8.0, "z": 7.0})
+
+    assert active["position"] == {"x": 1.25, "y": -2.0, "z": 0.5}
+    quaternion_norm = (0.1 ** 2 + 0.2 ** 2 + 0.3 ** 2 + 0.9 ** 2) ** 0.5
+    assert active["orientation"] == pytest.approx({
+        "x": 0.1 / quaternion_norm,
+        "y": 0.2 / quaternion_norm,
+        "z": 0.3 / quaternion_norm,
+        "w": 0.9 / quaternion_norm,
+    })
+    assert disconnected["position"] == {"x": 0.0, "y": 0.0, "z": 0.0}
+    assert disconnected["orientation"] == {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0}
+
+
+def test_stick_axis_preserves_signed_range_and_clamps():
+    assert ControllerInputReader.normalize_axis(-1.0) == -1.0
+    assert ControllerInputReader.normalize_axis(0.0) == 0.0
+    assert ControllerInputReader.normalize_axis(1.0) == 1.0
+    assert ControllerInputReader.normalize_axis(-2.0) == -1.0
+    assert ControllerInputReader.normalize_axis(2.0) == 1.0
+
+
+def test_controller_reader_rejects_nonfinite_position_and_zero_quaternion():
+    class Controller:
+        def get_float(self, _action):
+            return 0.0
+
+        def get_vector2(self, _action):
+            return type("Vector2", (), {"x": 0.0, "y": 0.0})()
+
+        def is_button_pressed(self, _button):
+            return False
+
+    with pytest.raises(ValueError, match="position.x must be a finite"):
+        ControllerInputReader.read_controller(
+            Controller(), position={"x": float("nan"), "y": 0.0, "z": 0.0},
+            orientation={"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0})
+    with pytest.raises(ValueError, match="quaternion must be non-zero"):
+        ControllerInputReader.read_controller(
+            Controller(), position={"x": 0.0, "y": 0.0, "z": 0.0},
+            orientation={"x": 0.0, "y": 0.0, "z": 0.0, "w": 0.0})
 
 
 def test_sequence_increments_and_latest_wins(link):

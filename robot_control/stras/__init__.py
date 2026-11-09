@@ -1,31 +1,23 @@
-"""EASE / STRAS follower package.
+"""VR-driven STRAS simulation components.
 
-Layout (each module has one job):
-
-    constants.py      protocol enums, axis labels, qp ordering
-    errors.py         exception hierarchy
-    config.py         locating and reading the config text files
-    limits.py         JointLimits / RobotLimits (all limit tables in one place)
-    protocol.py       pure functions: build and parse wire messages
-    transport.py      socket wrapper (connect / send / request)
-    state.py          RobotState, AxisRanges, parse_state, parse_axis_infos
-    kinematics.py     wrapper around StrasModel, returns ModelOutput
-    visualizer_base.py    VisualizerLike: the one-method renderer interface
-    godot_visualization.py  GodotVisualizer: streams geometry to Godot
-    experiment.py     experiment / teleoperation flags (not hardware state)
-    follower.py       Follower, RealFollower, VirtualFollower, make_follower
-    compat.py         legacy `EASEfollower` facade with the old method names
+The active pipeline maps XR poses to virtual joint positions, computes model
+kinematics, and sends geometry to Godot. It contains no robot transport or
+physical STRAS command interface.
 """
-from .errors import (ConnectionFailed, ProtocolError, StrasError,
-                     TransportError, TransportTimeout)
-from .follower import Follower, RealFollower, VirtualFollower, make_follower
-from .limits import JointLimits, RobotLimits
-from .state import AxisRanges, AxisState, RobotState
-from .transport import StrasTransport
+
+from .simulation.constants import QP_ORDER
+from .simulation.virtual_follower import VirtualFollower
+from .input.mapping_and_limits.input_mapping import ControllerToConfiguration
+from .model.kinematics import Kinematics, ModelOutput, ShapeOutput
+from .input.mapping_and_limits.limits import JointLimits, RobotLimits
 
 __all__ = [
-    "AxisRanges", "AxisState", "ConnectionFailed", "ExperimentState",
-    "Follower", "JointLimits", "ProtocolError", "RealFollower", "RobotLimits",
-    "RobotState", "StrasError", "StrasTransport", "TransportError",
-    "TransportTimeout", "VirtualFollower", "make_follower",
+    "ControllerToConfiguration",
+    "JointLimits",
+    "Kinematics",
+    "ModelOutput",
+    "QP_ORDER",
+    "RobotLimits",
+    "ShapeOutput",
+    "VirtualFollower",
 ]
