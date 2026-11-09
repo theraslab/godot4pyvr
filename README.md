@@ -146,8 +146,12 @@ flatpak run \
 ```bash
 cd ~/Documents/godot/godot-bin
 
+# 1. Clear out Intel Mesa targets from the loader scope completely
 export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+
+# 2. Enforce standard XR & Python variables
 export XR_RUNTIME_JSON=$HOME/Documents/godot/godot-bin/openxr_wivrn.json
+export PYTHONPATH=~/miniconda3/envs/pyvr/lib/python3.10/site-packages:$PYTHONPATH
 
 # 3. Apply standard PRIME hardware parameters
 export __NV_PRIME_RENDER_OFFLOAD=1
@@ -155,7 +159,7 @@ export __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
 export __GLX_VENDOR_LIBRARY_NAME=nvidia
 
 # 4. Open the editor; press F5 to run the project
-./Godot_v4.7-stable_linux.x86_64 -e --path ~/Documents/godot/virtual-stras-mio/godot4pyvr-mio/
+./Godot_v4.7-stable_linux.x86_64 -e --path ~/Documents/godot/hello-world/
 ```
 
 Or run directly without the editor:
@@ -170,7 +174,7 @@ export __GLX_VENDOR_LIBRARY_NAME=nvidia
 export CUDA_CACHE_DISABLE=0
 export XR_RUNTIME_JSON=$HOME/Documents/godot/godot-bin/openxr_wivrn.json
 
-./Godot_v4.7-stable_linux.x86_64 --path ~/Documents/godot/virtual-stras-mio/godot4pyvr-mio/ --xr-mode on --rendering-method forward_plus
+./Godot_v4.7-stable_linux.x86_64 --path ~/Documents/godot/hello-world/ --xr-mode on --rendering-method forward_plus
 ```
 
 ## Notes for development
