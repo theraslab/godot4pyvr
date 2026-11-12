@@ -11,12 +11,17 @@ static func to_points(raw: Array, robot_to_godot: Basis) -> PackedVector3Array:
 
 static func build_tube(points: PackedVector3Array, radius: float,
 			radial_segments: int, cap_start: bool = false,
-			cap_end: bool = false) -> ArrayMesh:
+			cap_end: bool = false, texture_repeat_mm: float = 0.0) -> ArrayMesh:
 	var point_count := points.size()
 	if point_count < 2 or radius <= 0.0 or radial_segments < 3:
 		return null
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var use_uv := texture_repeat_mm > 0.0
+	var distances := PackedFloat32Array()
+	distances.resize(point_count)
+	for i in range(1, point_count):
+		distances[i] = distances[i - 1] + points[i - 1].distance_to(points[i])
 
 	# Build a circular cross-section at each point along the tube centerline.
 	var rings: Array[PackedVector3Array] = []
@@ -51,12 +56,16 @@ static func build_tube(points: PackedVector3Array, radius: float,
 			var b: Vector3 = rings[i][next_j]
 			var c: Vector3 = rings[i + 1][j]
 			var d: Vector3 = rings[i + 1][next_j]
-			surface.add_vertex(a)
-			surface.add_vertex(b)
-			surface.add_vertex(d)
-			surface.add_vertex(a)
-			surface.add_vertex(d)
-			surface.add_vertex(c)
+			var u0 := distances[i] / texture_repeat_mm if use_uv else 0.0
+			var u1 := distances[i + 1] / texture_repeat_mm if use_uv else 0.0
+			var v0 := TAU * radius * float(j) / float(radial_segments) / texture_repeat_mm if use_uv else 0.0
+			var v1 := TAU * radius * float(j + 1) / float(radial_segments) / texture_repeat_mm if use_uv else 0.0
+			_add_vertex(surface, a, Vector2(u0, v0), use_uv)
+			_add_vertex(surface, b, Vector2(u0, v1), use_uv)
+			_add_vertex(surface, d, Vector2(u1, v1), use_uv)
+			_add_vertex(surface, a, Vector2(u0, v0), use_uv)
+			_add_vertex(surface, d, Vector2(u1, v1), use_uv)
+			_add_vertex(surface, c, Vector2(u1, v0), use_uv)
 	if cap_start:
 		for j in radial_segments:
 			var next_j := (j + 1) % radial_segments
@@ -72,3 +81,10 @@ static func build_tube(points: PackedVector3Array, radius: float,
 	surface.index()
 	surface.generate_normals()
 	return surface.commit()
+
+
+static func _add_vertex(surface: SurfaceTool, position: Vector3, uv: Vector2,
+		use_uv: bool) -> void:
+	if use_uv:
+		surface.set_uv(uv)
+	surface.add_vertex(position)

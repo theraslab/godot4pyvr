@@ -38,14 +38,16 @@ def controller(position, connected=True, orientation=None):
 
 
 def frame(left=(0.0, 0.0, 0.0), right=(0.0, 0.0, 0.0),
-          camera=(0.0, 0.0, 0.0), yaw=0.0, left_connected=True,
+          camera=(0.0, 0.0, 0.0), pitch=0.0, yaw=0.0, roll=0.0, left_connected=True,
           right_connected=True, left_orientation=None, right_orientation=None):
     return {
         "left": controller(left, left_connected, left_orientation),
         "right": controller(right, right_connected, right_orientation),
         "camera": {
             "position": dict(zip(("x", "y", "z"), camera)),
+            "pitch": pitch,
             "yaw": yaw,
+            "roll": roll,
         },
     }
 
@@ -76,7 +78,8 @@ def test_pose_offsets_map_to_expected_q_axes_and_units():
         left=(0.05, -0.05, 0.1),
         right=(-0.05, 0.05, -0.05),
         camera=(0.1, -0.05, -0.05),
-        yaw=np.pi / 4.0,
+        pitch=np.pi / 8.0,
+        yaw=np.pi / 8.0,
     ))
 
     expected_neutral = np.zeros(len(QP_ORDER))
@@ -99,10 +102,11 @@ def test_pose_offsets_map_to_expected_q_axes_and_units():
     assert np.isclose(
         q[index["TL"]], ARM_INSERTION_HOME_MM
         + left_insertion_offset / 0.25 * ARM_INSERTION_TRAVEL_MM)
-    assert q[index["EBH"]] == limits.upper[index["EBH"]]
-    assert q[index["EBV"]] == limits.lower[index["EBV"]] / 2
-    assert q[index["ER"]] == limits.upper[index["ER"]] / 2
-    assert q[index["ET"]] == limits.upper[index["ET"]] / 2  # camera forward is -Z
+    # Head orientation bends the endoscope; head translation never advances it.
+    assert np.isclose(q[index["EBH"]], -limits.upper[index["EBH"]] / 2)
+    assert np.isclose(q[index["EBV"]], limits.upper[index["EBV"]] / 2)
+    assert q[index["ER"]] == 0.0
+    assert q[index["ET"]] == 0.0
 
 
 def test_hand_up_and_down_both_create_visible_bends_in_screen_direction():
@@ -205,8 +209,53 @@ def test_head_yaw_maps_signed_deltas_to_endoscope_rotation_including_wraparound(
     turned_left = mapper.update(frame(yaw=-np.pi + 0.1))
     turned_right = mapper.update(frame(yaw=np.pi - 0.3))
 
-    assert np.isclose(turned_left[QP_ORDER.index("ER")], 0.2)
-    assert np.isclose(turned_right[QP_ORDER.index("ER")], -0.2)
+    bend_limit = limits.upper[QP_ORDER.index("EBH")]
+    assert np.isclose(turned_left[QP_ORDER.index("EBH")], -bend_limit * 0.2 / (np.pi / 4.0))
+    assert np.isclose(turned_right[QP_ORDER.index("EBH")], bend_limit * 0.2 / (np.pi / 4.0))
+    assert turned_left[QP_ORDER.index("ET")] == 0.0
+
+
+def test_head_pitch_bends_vertically_and_roll_controls_endoscope_roll():
+    limits = RobotLimits.default().virtual_cs
+    mapper = ControllerToConfiguration(limits)
+    mapper.update(frame())
+
+    looking_up = mapper.update(frame(pitch=np.pi / 8.0, roll=np.pi / 4.0))
+
+    assert np.isclose(
+        looking_up[QP_ORDER.index("EBV")],
+        limits.upper[QP_ORDER.index("EBV")] / 2.0,
+    )
+    assert np.isclose(looking_up[QP_ORDER.index("ER")], limits.upper[QP_ORDER.index("ER")] / 2.0)
+    assert looking_up[QP_ORDER.index("ET")] == 0.0
+
+
+def test_combined_head_bending_stays_within_forward_facing_tube_limit():
+    limits = RobotLimits.default().virtual_cs
+    mapper = ControllerToConfiguration(limits)
+    mapper.update(frame())
+
+    diagonal = mapper.update(frame(pitch=np.pi / 2.0, yaw=np.pi / 2.0))
+    horizontal_bend = diagonal[QP_ORDER.index("EBH")]
+    vertical_bend = diagonal[QP_ORDER.index("EBV")]
+    max_curvature = min(
+        limits.upper[QP_ORDER.index("EBH")],
+        limits.upper[QP_ORDER.index("EBV")],
+    )
+
+    assert np.isclose(np.hypot(horizontal_bend, vertical_bend), max_curvature)
+    assert horizontal_bend < 0.0
+    assert vertical_bend > 0.0
+
+
+def test_head_translation_alone_does_not_move_or_bend_endoscope():
+    mapper = ControllerToConfiguration(RobotLimits.default().virtual_cs)
+    mapper.update(frame())
+
+    translated = mapper.update(frame(camera=(0.3, -0.2, 0.5)))
+
+    for joint in ("EBH", "EBV", "ER", "ET"):
+        assert translated[QP_ORDER.index(joint)] == 0.0
 
 
 def test_camera_mapper_recenter_and_reset_capture_neutral_pose():
@@ -215,10 +264,17 @@ def test_camera_mapper_recenter_and_reset_capture_neutral_pose():
     shifted = {"position": {"x": 0.05, "y": 0.0, "z": 0.0}, "yaw": 0.2}
 
     mapper.update(initial)
-    assert mapper.update(shifted)["EBH"] != 0.0
-    mapper.recenter(shifted)
-    assert mapper.update(shifted) == {"EBH": 0.0, "EBV": 0.0,
-                                      "ET": 0.0, "ER": 0.0}
+    shifted_values = mapper.update(shifted)
+    assert shifted_values["EBH"] < 0.0
+    assert shifted_values["EBV"] == 0.0
+    assert shifted_values["ET"] == 0.0
+    assert shifted_values["ER"] == 0.0
+    mapper.recenter({**shifted, "roll": 0.1})
+    recentered_values = mapper.update(shifted)
+    assert recentered_values["EBH"] == 0.0
+    assert recentered_values["EBV"] == 0.0
+    assert recentered_values["ET"] == 0.0
+    assert np.isclose(recentered_values["ER"], -0.1)
     assert mapper.neutral_yaw == 0.2
 
     mapper.reset()

@@ -142,9 +142,8 @@ The mapping is absolute and based on the first tracked neutral pose. The values 
 | --- | --- |
 | Right controller lateral + vertical offset | `BR` + `RR` / `TR` |
 | Left controller lateral + vertical offset | `BL` + `RL` / `TL` |
-| XR camera X / Y position | `EBH` / `EBV` |
-| XR camera forward/back position | `ET` |
-| XR camera yaw | `ER` |
+| XR camera position | Ignored for now; keeps the virtual endoscope inside the tube |
+| XR camera yaw | `ER` (endoscope roll) |
 
 The q order is:
 

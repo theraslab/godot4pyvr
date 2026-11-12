@@ -16,6 +16,7 @@ from .mapping_math import (
     ARM_INSERTION_TRAVEL_MM,
     CAMERA_POSITION_FULL_SCALE_M,
     DEADZONE_M,
+    HEAD_BEND_FULL_SCALE_RAD,
     YAW_FULL_SCALE_RAD,
 )
 
@@ -27,6 +28,7 @@ __all__ = [
     "CAMERA_POSITION_FULL_SCALE_M",
     "ControllerToConfiguration",
     "DEADZONE_M",
+    "HEAD_BEND_FULL_SCALE_RAD",
     "YAW_FULL_SCALE_RAD",
 ]
 
@@ -39,9 +41,10 @@ class ControllerToConfiguration:
     and vertical offsets jointly determine bend magnitude and direction; a
     5 mm radial deadzone is rescaled to a 15 cm bend full scale. Arm
     insertion starts at a 50 mm visible home pose with 20 mm of symmetric
-    travel on a 25 cm hand-motion full scale; camera translation retains a
-    10 cm full scale.
-    A 90 degree yaw delta reaches ER's bound.
+    travel on a 25 cm hand-motion full scale. Head translation is ignored;
+    looking left/right and up/down bends the endoscope horizontally/vertically,
+    while head roll controls endoscope roll. Combined bend is capped at
+    90 degrees so the endoscope stays forward-facing; insertion stays fixed.
     """
 
     def __init__(self, limits: JointLimits):

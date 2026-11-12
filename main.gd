@@ -26,6 +26,9 @@ func _ready() -> void:
 			NetworkConstants.LOOPBACK_HOST, NetworkConstants.INPUT_PORT])
 	$XRRig/XROrigin3D/LeftHand.show_when_tracked = false
 	$XRRig/XROrigin3D/RightHand.show_when_tracked = false
+	var robot_geometry: Node3D = $World/RobotGeometry
+	var tube_environment: Node3D = $World/TubeEnvironment
+	tube_environment.call("set_robot_basis", robot_geometry.get("robot_to_godot"))
 
 	var xr_interface = XRServer.find_interface("OpenXR")
 	if xr_interface:
@@ -38,6 +41,7 @@ func _process(_delta: float) -> void:
 	var left_hand: XRController3D = $XRRig/XROrigin3D/LeftHand
 	var right_hand: XRController3D = $XRRig/XROrigin3D/RightHand
 	var xr_camera: XRCamera3D = $XRRig/XROrigin3D/XRCamera3D
+	var head_euler := xr_camera.global_transform.basis.get_euler()
 	_anchor_robot_to_body(xr_camera)
 	var payload := {
 		"v": NetworkConstants.INPUT_PROTOCOL_VERSION,
@@ -46,7 +50,9 @@ func _process(_delta: float) -> void:
 		"right": _controller_payload(right_hand),
 		"camera": {
 			"position": _vector3_payload(xr_camera.global_position), #Head position in world space
-			"yaw": xr_camera.global_transform.basis.get_euler().y, #user is looking left/right
+			"pitch": head_euler.x,
+			"yaw": head_euler.y,
+			"roll": head_euler.z,
 		},
 		"dt": maxf(0.0, _delta),
 	}
@@ -75,6 +81,7 @@ func _anchor_robot_to_body(xr_camera: XRCamera3D) -> void:
 	var body_basis := Basis(Vector3.UP, robot_yaw) * model_to_forward
 	# Anchor once at the tracked head pose as a torso proxy; do not alter camera calibration.
 	robot_geometry.global_transform = Transform3D(body_basis, body_position)
+	$World/TubeEnvironment.call("place_at_anchor", robot_geometry.global_transform)
 	_robot_body_anchor_set = true
 	print("Native: Robot geometry anchored below the initial XR head pose.")
 

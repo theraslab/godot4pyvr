@@ -22,6 +22,9 @@ var _simulation_screen: MeshInstance3D
 var _teleop_hud: Control
 var _preview_viewport: SubViewport
 var _endoscope_camera: Camera3D
+var _simulation_environment_mesh: MeshInstance3D
+var _simulation_environment_guide: MeshInstance3D
+var _preview_environment_mesh: MeshInstance3D
 
 
 func setup(owner: Node3D) -> void:
@@ -50,6 +53,8 @@ func update_endoscope_camera(data: Dictionary, robot_to_godot: Basis) -> void:
 	var camera_basis := robot_to_godot * model_basis * optical_to_godot
 	var camera_origin := robot_to_godot * Vector3(
 		float(pose[0][3]), float(pose[1][3]), float(pose[2][3]))
+	# Follow the live tip pose so the view stays aligned with the endoscope and
+	# the arms, which are transformed by the same endoscope kinematics.
 	var camera_transform := Transform3D(camera_basis, camera_origin)
 	_simulation_camera.transform = camera_transform
 	if _endoscope_camera != null:
@@ -89,6 +94,30 @@ func update_teleop_hud(values: Dictionary) -> void:
 		_teleop_hud.set_values(values)
 
 
+func set_static_environment(mesh: Mesh, material: Material,
+		guide_mesh: Mesh = null, guide_material: Material = null) -> void:
+	_simulation_environment_mesh = _set_environment_mesh(
+		simulation_root, _simulation_environment_mesh, mesh, material,
+		"StaticTubeEnvironment")
+	if guide_mesh != null:
+		_simulation_environment_guide = _set_environment_mesh(
+			simulation_root, _simulation_environment_guide, guide_mesh,
+			guide_material, "TubeCurveGuide")
+		_simulation_environment_guide.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+func _set_environment_mesh(parent: Node3D, instance: MeshInstance3D,
+		mesh: Mesh, material: Material, node_name: String) -> MeshInstance3D:
+	if instance == null:
+		instance = MeshInstance3D.new()
+		instance.name = node_name
+		instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		parent.add_child(instance)
+	instance.mesh = mesh
+	instance.material_override = material
+	return instance
+
+
 func _setup_simulation_display() -> void:
 	_simulation_viewport = SubViewport.new()
 	_simulation_viewport.name = "SimulationViewport"
@@ -104,12 +133,15 @@ func _setup_simulation_display() -> void:
 	_simulation_camera.current = true
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color(0.025, 0.035, 0.055)
+	# Keep the floating simulation readable; this is a deliberate viewport color,
+	# not a camera exposure or lighting setting.
+	environment.background_color = Color(0.18, 0.21, 0.26)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color(0.72, 0.76, 0.84)
-	environment.ambient_light_energy = 0.85
+	environment.ambient_light_energy = 0.55
 	_simulation_camera.environment = environment
 	_add_camera_headlight(_simulation_camera)
+	_add_tube_key_light(simulation_root)
 	_setup_teleop_hud()
 
 	var xr_camera := _owner.get_tree().root.find_child("XRCamera3D", true, false) as XRCamera3D
@@ -177,6 +209,16 @@ func _add_default_camera() -> void:
 func _add_camera_headlight(camera: Camera3D) -> void:
 	var light := OmniLight3D.new()
 	light.position = Vector3.ZERO
-	light.omni_range = 250.0
+	light.omni_range = 800.0
 	light.light_energy = 1.2
 	camera.add_child(light)
+
+
+func _add_tube_key_light(parent: Node3D) -> void:
+	var light := DirectionalLight3D.new()
+	light.name = "TubeKeyLight"
+	light.rotation_degrees = Vector3(-35.0, -25.0, 0.0)
+	light.light_energy = 0.7
+	light.shadow_enabled = true
+	light.directional_shadow_max_distance = 1000.0
+	parent.add_child(light)

@@ -89,3 +89,9 @@ func _on_geometry_frame_received(message: Dictionary) -> void:
 	var camera_data = message.get("camera")
 	if camera_data is Dictionary:
 		_display.update_endoscope_camera(camera_data, robot_to_godot)
+
+
+func set_static_environment(mesh: Mesh, material: Material,
+		guide_mesh: Mesh = null, guide_material: Material = null) -> void:
+	if _display != null:
+		_display.set_static_environment(mesh, material, guide_mesh, guide_material)

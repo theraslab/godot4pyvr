@@ -13,6 +13,7 @@ ARM_INSERTION_HOME_MM = 50.0
 ARM_INSERTION_TRAVEL_MM = 20.0
 DEADZONE_M = 0.005
 YAW_FULL_SCALE_RAD = math.pi / 2.0
+HEAD_BEND_FULL_SCALE_RAD = math.pi / 4.0
 
 
 def _validate_full_scale(full_scale: float, minimum: float) -> float:
