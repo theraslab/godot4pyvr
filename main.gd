@@ -14,7 +14,7 @@ func _ready() -> void:
 	get_viewport().use_xr = true
 	get_viewport().transparent_bg = true
 	RenderingServer.set_default_clear_color(Color(0, 0, 0, 0))
-	print("Native: Composition layer defaults set to alpha zero clear.")
+	print("Native: Composition layer defaults set to alpha zero clear.") #transparent-clear setting was applied
 	var socket_error := _input_socket.set_dest_address(
 		NetworkConstants.LOOPBACK_HOST, NetworkConstants.INPUT_PORT)
 	if socket_error != OK:
@@ -45,8 +45,8 @@ func _process(_delta: float) -> void:
 		"left": _controller_payload(left_hand),
 		"right": _controller_payload(right_hand),
 		"camera": {
-			"position": _vector3_payload(xr_camera.global_position),
-			"yaw": xr_camera.global_transform.basis.get_euler().y,
+			"position": _vector3_payload(xr_camera.global_position), #Head position in world space
+			"yaw": xr_camera.global_transform.basis.get_euler().y, #user is looking left/right
 		},
 		"dt": maxf(0.0, _delta),
 	}

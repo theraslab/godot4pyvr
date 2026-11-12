@@ -41,8 +41,8 @@ The code preserves the same decomposition used in the paper: poses are expressed
 
 The model computes the endoscope transform first and then composes each arm pose relative to it. This is the same as the paper’s chained transformation structure:
 
-- `${}^{w}T_r = {}^{w}T_e {}^{e}T_r$`
-- `${}^{w}T_l = {}^{w}T_e {}^{e}T_l$`
+- ${}^{w}T_r = {}^{w}T_e {}^{e}T_r$
+- ${}^{w}T_l = {}^{w}T_e {}^{e}T_l$
 
 This is implemented in:
 - [module_main/model_utilities/stras_model.py](module_main/model_utilities/stras_model.py)
@@ -61,7 +61,7 @@ Examples:
 Defined in:
 - [robot_control/stras/model/kinematics.py](robot_control/stras/model/kinematics.py)
 
-This matches the paper’s distinction between the arm positions in `{e}` and `{w}`.
+This matches the paper’s distinction between the arm positions in $\{e\}$ and $\{w\}$
 
 ## 5. Jacobian structure consistent with the generalized optimization formulation
 
