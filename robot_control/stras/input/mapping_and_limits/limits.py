@@ -1,7 +1,9 @@
 """Joint limits used by the VR-driven STRAS simulation."""
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Mapping, Sequence
 
 import numpy as np
@@ -79,6 +81,64 @@ class RobotLimits:
 
     virtual_cs: JointLimits
 
+    @staticmethod
+    def _candidate_session_paths(session_path: str | Path | None = None) -> list[Path]:
+        candidates: list[Path] = []
+        if session_path is not None:
+            candidates.append(Path(session_path))
+
+        candidates.extend(
+            [
+                Path.cwd() / "session_limits.json",
+                Path(__file__).resolve().parents[4] / "session_limits.json",
+                Path(__file__).resolve().with_name("session_limits.json"),
+            ]
+        )
+
+        unique: list[Path] = []
+        seen: set[str] = set()
+        for candidate in candidates:
+            resolved = candidate if candidate.is_absolute() else (Path.cwd() / candidate).resolve()
+            key = str(resolved)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(resolved)
+        return unique
+
     @classmethod
-    def default(cls) -> RobotLimits:
+    def from_session_file(cls, session_path: str | Path) -> RobotLimits:
+        """Build limits from a session-generated JSON override, if present."""
+        path = Path(session_path)
+        if not path.is_absolute():
+            path = (Path.cwd() / path).resolve()
+
+        if not path.exists():
+            raise FileNotFoundError(f"session limits file not found: {path}")
+
+        with path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+
+        if not isinstance(payload, Mapping):
+            raise ValueError(f"session limits file must contain a JSON object: {path}")
+
+        lower = payload.get("lower")
+        upper = payload.get("upper")
+        if not isinstance(lower, Mapping) or not isinstance(upper, Mapping):
+            raise ValueError(f"session limits file must contain 'lower' and 'upper' mappings: {path}")
+
+        combined_lower = {label: float(lower.get(label, VIRTUAL_LOWER[label])) for label in QP_ORDER}
+        combined_upper = {label: float(upper.get(label, VIRTUAL_UPPER[label])) for label in QP_ORDER}
+        return cls(JointLimits.from_dicts(combined_lower, combined_upper))
+
+    @classmethod
+    def default(cls, session_path: str | Path | None = None) -> RobotLimits:
+        """Return the default hardcoded limits, or the session override if available."""
+        for candidate in cls._candidate_session_paths(session_path):
+            if not candidate.exists():
+                continue
+            try:
+                return cls.from_session_file(candidate)
+            except (FileNotFoundError, OSError, json.JSONDecodeError, KeyError, TypeError, ValueError):
+                continue
         return cls(JointLimits.from_dicts(VIRTUAL_LOWER, VIRTUAL_UPPER))

@@ -21,6 +21,7 @@ from robot_control.network_constants import (
 from robot_control.stras.simulation.virtual_follower import VirtualFollower
 from robot_control.stras.input.mapping_and_limits.input_mapping import ControllerToConfiguration
 from robot_control.stras.input.mapping_and_limits.joint_mapping import normalized_joints_to_q
+from robot_control.stras.input.mapping_and_limits.session_limits import SessionLimitRecorder
 from robot_control.stras.model.kinematics import Kinematics
 from robot_control.stras.input.mapping_and_limits.limits import RobotLimits
 from robot_control.stras.model.model_factory import build_camera_calibration, build_kinematics
@@ -49,6 +50,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--stats-interval", type=float, default=DEFAULT_STATS_INTERVAL_SECONDS,
         help="print cumulative input/FK counters every N seconds; 0 disables them (default)",
     )
+    parser.add_argument(
+        "--calibration-mode",
+        action="store_true",
+        help="record a new session, append to session_history.jsonl, and rebuild session_limits.json; default is runtime mode",
+    )
     return parser
 
 
@@ -73,12 +79,17 @@ def _latest_message(mailbox: Mailbox[InputMessage], after_seq: int) -> InputMess
 def _process_message(message: InputMessage, limits: RobotLimits,
                      input_mapping: ControllerToConfiguration,
                      follower: VirtualFollower, kinematics: Kinematics,
-                     sender: GodotGeometrySender, camera_calibration) -> None:
+                     sender: GodotGeometrySender, camera_calibration,
+                     recorder: SessionLimitRecorder | None = None) -> None:
     if "joints" in message.payload:
         # Preserve support for scripted/test inputs that supply normalized joints.
         q = normalized_joints_to_q(message.payload["joints"], limits)
     else:
         q = input_mapping.update(message.payload)
+
+    if recorder is not None:
+        recorder.update(q)
+
     follower.set_q(q)
     shape = kinematics.shape(follower.q_config_space)
     sender.send(message.seq, shape, camera_calibration, q=q, limits=limits)
@@ -88,7 +99,8 @@ def _run_loop(args: argparse.Namespace, mailbox: Mailbox[InputMessage],
               server: InputServer, sender: GodotGeometrySender,
               limits: RobotLimits, input_mapping: ControllerToConfiguration,
               follower: VirtualFollower, kinematics: Kinematics,
-              camera_calibration, geometry_interval: float) -> None:
+              camera_calibration, geometry_interval: float,
+              recorder: SessionLimitRecorder | None = None) -> None:
     print(
         f"Listening for local VR pose snapshots on {server.address}; "
         "updating the simulation-only VirtualFollower; "
@@ -130,7 +142,7 @@ def _run_loop(args: argparse.Namespace, mailbox: Mailbox[InputMessage],
             try:
                 _process_message(
                     message, limits, input_mapping, follower,
-                    kinematics, sender, camera_calibration)
+                    kinematics, sender, camera_calibration, recorder)
                 processed_frames += 1
                 sent_frames += 1
                 last_geometry_frame = message.seq
@@ -146,6 +158,22 @@ def run(args: argparse.Namespace, geometry_interval: float) -> None:
     mailbox: Mailbox[InputMessage] = Mailbox()
     server = InputServer(mailbox, host=args.input_host, port=args.input_port)
     sender: GodotGeometrySender | None = None
+    output_path = Path("session_limits.json")
+    history_path = Path("session_history.jsonl")
+
+    if args.calibration_mode:
+        recorder = SessionLimitRecorder(output_path=output_path)
+        print(
+            "Using calibration mode: recording this session and rebuilding session_limits.json from the accumulated history.",
+            flush=True,
+        )
+    else:
+        recorder = None
+        print(
+            "Using runtime mode: loading the existing session_limits.json override without rewriting calibration history.",
+            flush=True,
+        )
+
     try:
         module_main = Path(__file__).resolve().parents[1] / "module_main"
         kinematics = build_kinematics()
@@ -160,11 +188,17 @@ def run(args: argparse.Namespace, geometry_interval: float) -> None:
             raise InputServerStartupError(str(exc)) from exc
         _run_loop(
             args, mailbox, server, sender, limits, input_mapping, follower,
-            kinematics, camera_calibration, geometry_interval)
+            kinematics, camera_calibration, geometry_interval, recorder)
     finally:
         server.stop()
         if sender is not None:
             sender.close()
+        if recorder is not None:
+            if recorder._has_values:
+                recorder.append_to_history(history_path)
+                recorder.save_aggregated_history(history_path, output_path=output_path, method="median")
+            else:
+                recorder.save()
 
 
 def main(argv: list[str] | None = None) -> int:

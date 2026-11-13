@@ -1,3 +1,7 @@
+## Main entry point. It has 3 jobs:
+## 1. XR SETUP: Set up the XR session and configure the viewport for alpha blending(transparent background).
+## 2. VR input (payload): streaming: Send the tracked headset and controller poses to the robot control process (Every frame send a JSON snapshot as a UDP packet ).
+## 3. ANCHORING: Anchor the robot geometry to the user's torso once at the start of the session
 extends Node3D
 
 const NetworkConstants = preload("res://robot_control/network_constants.gd")
@@ -38,6 +42,7 @@ func _ready() -> void:
 			print("Native: Passthrough blend mode rejected by runtime.")
 
 func _process(_delta: float) -> void:
+	## Send a snapshot of the tracked headset and controller poses to the robot control process.
 	var left_hand: XRController3D = $XRRig/XROrigin3D/LeftHand
 	var right_hand: XRController3D = $XRRig/XROrigin3D/RightHand
 	var xr_camera: XRCamera3D = $XRRig/XROrigin3D/XRCamera3D

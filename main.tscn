@@ -1,16 +1,25 @@
+;Godot scene set up. It is the starting point of the VR application for viewing the robot
+;It does not contain any logic itself.
+;It is a blueprint that tells Godot which nodes to create when the app starts 
 [gd_scene format=3 uid="uid://c3prlatwxbdbn"]
 
-[ext_resource type="Script" uid="uid://n8qofv3kxjcm" path="res://main.gd" id="1_ig7tw"]
-[ext_resource type="Script" uid="uid://d8mtg64pskn0" path="res://robot_control/stras/visualization/stras_receiver.gd" id="3_stras_receiver"]
-[ext_resource type="Script" uid="uid://cjf7hxyt0pu02" path="res://robot_control/stras/visualization/geometry/tube_environment.gd" id="4_tube_environment"]
+[ext_resource type="Script" uid="uid://n8qofv3kxjcm" path="res://main.gd" id="1_ig7tw"] ; Top-level application logic: XR setup, robot control, etc.
+[ext_resource type="Script" uid="uid://d8mtg64pskn0" path="res://robot_control/stras/visualization/stras_receiver.gd" id="3_stras_receiver"] ; Receives data from the controller and updates the robot geometry accordingly
+[ext_resource type="Script" uid="uid://cjf7hxyt0pu02" path="res://robot_control/stras/visualization/geometry/tube_environment.gd" id="4_tube_environment"] ; Defines the tube environment in which the robot is placed. It is a visual representation of the robot's workspace and does not contain any logic itself.
 
-[node name="Main" type="Node3D" unique_id=495166052]
+[node name="Main" type="Node3D" unique_id=495166052] ; <- root node
 script = ExtResource("1_ig7tw")
+
+; XRRIG manages the XR session and contains the camera and controllers in Godot. It is a standard Godot node for VR applications
+; Rig means that the camera and controllers are linked together in a single unit, so that they move together in the virtual world. 
+; The XRRig node is a child of the Main node, which is the root node of the scene. 
 
 [node name="XRRig" type="Node3D" parent="." unique_id=-1787591580]
 
+; XROrigin3D is the origin of the player’s tracked space. Moving or rotating this node moves the user through the virtual world. The controllers and camera are its children, so their positions are relative to it.
 [node name="XROrigin3D" type="XROrigin3D" parent="XRRig" unique_id=1968607024]
 
+; left and right hand controllers. 
 [node name="LeftHand" type="XRController3D" parent="XRRig/XROrigin3D" unique_id=919530321]
 tracker = &"left_hand"
 pose = &"aim"
@@ -19,17 +28,22 @@ pose = &"aim"
 tracker = &"right_hand"
 pose = &"aim"
 
+; The head-tracked camera.
 [node name="XRCamera3D" type="XRCamera3D" parent="XRRig/XROrigin3D" unique_id=913497663]
 
+; DoFs annotations displayed in the VR environment. They are children of the camera, so they move with the camera and are always visible to the user.
 [node name="HUDLabel" type="Label3D" parent="XRRig/XROrigin3D/XRCamera3D" unique_id=1003321546]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.5)
 
+; Child of root node. It contains the robot geometry and the tube environment. It is a container for the robot and its environment, and it does not contain any logic itself.
 [node name="World" type="Node3D" parent="." unique_id=754196705]
 
+; Stras receiver node
 [node name="RobotGeometry" type="Node3D" parent="World" unique_id=392475165]
 visible = false
 script = ExtResource("3_stras_receiver")
 
+; Tube environment node
 [node name="TubeEnvironment" type="Node3D" parent="World" unique_id=2118216555]
 visible = false
 script = ExtResource("4_tube_environment")
